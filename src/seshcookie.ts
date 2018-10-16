@@ -66,7 +66,11 @@ class SeshCookie {
   }
 
   handle(req: Request, resp: Response, next: NextFunction): void {
+    // TODO: check if incoming request has a cookie, if so decrypt it
+    // and store the session on the request
     next();
+    // TODO: serialize the state on the request (if changed), and set a
+    // cookie on the response
   }
 }
 

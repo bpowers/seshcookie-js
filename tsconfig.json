@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "es2017",
+    "module": "commonjs",
+    "outDir": "lib",
+    "lib": [
+      "es2018"
+    ],
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "noImplicitAny": true,
+    "newLine": "LF",
+    "sourceMap": true,
+    "declaration": true,
+    "removeComments": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "node"
+  },
+  "exclude": [
+    "public",
+    "node_modules",
+    "build",
+    "scripts",
+    "acceptance-tests",
+    "webpack",
+    "jest",
+    "lib",
+    "test"
+  ]
+}

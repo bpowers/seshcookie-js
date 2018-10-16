@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 
 import { NextFunction, Request, RequestHandler, Response } from 'express';
+import { networkInterfaces } from 'os';
 
 const algorithm = 'aes-128-gcm';
 
@@ -14,7 +15,7 @@ interface Options {
   secure: boolean;
 }
 
-function encrypt(plaintext: Buffer, encKey: string): string {
+export function encrypt(plaintext: Buffer, encKey: Buffer): string {
   const nonce = crypto.randomBytes(gcmNonceSize);
   const cipher = crypto.createCipheriv(algorithm, encKey, nonce);
 
@@ -24,23 +25,26 @@ function encrypt(plaintext: Buffer, encKey: string): string {
 
   const tag = cipher.getAuthTag();
 
-  return `${nonce.toString('base64')}-${ciphertext.toString(
-    'base64',
-  )}-${tag.toString('base64')}`;
+  return `${nonce.toString('base64')}-${ciphertext.toString('base64')}-${tag.toString('base64')}`;
 }
 
-function decrypt(content: string, encKey: string): string {
+export function decrypt(content: string, encKey: Buffer): string {
   const parts = content.split('-');
   if (parts.length !== 3) {
     throw new Error(`expected 3 parts, got ${parts.length}`);
   }
-  const [nonce, ciphertext, tag] = parts;
+
+  const [encodedNonce, encodedCiphertext, encodedTag] = parts;
+  const nonce = Buffer.from(encodedNonce, 'base64');
+  const ciphertext = Buffer.from(encodedCiphertext, 'base64');
+  const tag = Buffer.from(encodedTag, 'base64');
+
   const cipher = crypto.createDecipheriv(algorithm, encKey, nonce);
 
-  cipher.setAuthTag(Buffer.from(tag, 'base64'));
+  cipher.setAAD(nonce);
+  cipher.setAuthTag(tag);
 
-  cipher.setAAD(Buffer.from(nonce, 'base64'));
-  let plaintext = cipher.update(Buffer.from(ciphertext, 'base64'));
+  let plaintext = cipher.update(ciphertext);
   plaintext = Buffer.concat([plaintext, cipher.final()]);
 
   return plaintext.toString();

@@ -1,0 +1,24 @@
+{
+  "files": [
+    "test/seshcookie_test.ts"
+  ],
+  "compilerOptions": {
+    "target": "es2017",
+    "module": "commonjs",
+    "outDir": "test",
+    "lib": [
+      "es2018"
+    ],
+    "strictPropertyInitialization": false,
+    "noImplicitAny": true,
+    "newLine": "LF",
+    "sourceMap": false,
+    "declaration": false,
+    "removeComments": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "node"
+  }
+}

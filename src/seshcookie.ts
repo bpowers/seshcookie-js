@@ -1,13 +1,14 @@
 import * as crypto from 'crypto';
+import { OutgoingHttpHeaders } from 'http';
 
-import { NextFunction, Request, RequestHandler, Response } from 'express';
-import { networkInterfaces } from 'os';
+import { CookieOptions, NextFunction, Request, RequestHandler, Response } from 'express';
 
+// we use AES128 in Galois Counter Mode; with this GCM instantiation
+// the size of the nonce is 12 bytes
 const algorithm = 'aes-128-gcm';
-
 const gcmNonceSize = 12;
 
-interface Options {
+export interface Options {
   key: string; // key used for encrypting + decrypting sessions
   cookieName: string;
   cookiePath: string;
@@ -50,33 +51,142 @@ export function decrypt(content: string, encKey: Buffer): string {
   return plaintext.toString();
 }
 
+// turn a user-provided string into a key of the proper length for our AEAD key
+function deriveKey(input: string): Buffer {
+  return crypto
+    .createHash('sha256')
+    .update(input)
+    .digest()
+    .slice(0, 16);
+}
+
+// using seshcookie extends the Request obeject with a session field.
+declare global {
+  namespace Express {
+    interface Request {
+      session: SessionData;
+    }
+
+    interface SessionData {
+      [key: string]: any;
+    }
+  }
+}
+
 class SeshCookie {
-  key: string;
+  key: Buffer;
   cookieName: string;
   cookiePath: string;
   httpOnly: boolean;
   secure: boolean;
 
   constructor(options: Options) {
-    this.key = options.key;
+    this.key = deriveKey(options.key);
     this.cookieName = options.cookieName;
-    this.cookiePath = options.cookiePath;
+    this.cookiePath = options.cookiePath ? options.cookiePath : '/';
     this.httpOnly = options.httpOnly;
     this.secure = options.secure;
   }
 
-  handle(req: Request, resp: Response, next: NextFunction): void {
-    // TODO: check if incoming request has a cookie, if so decrypt it
-    // and store the session on the request
-    next();
-    // TODO: serialize the state on the request (if changed), and set a
-    // cookie on the response
+  private setCookie(res: Response, value: string, expire?: boolean): void {
+    const options: CookieOptions = {
+      httpOnly: this.httpOnly,
+      path: this.cookiePath,
+      secure: this.secure,
+    };
+
+    if (expire) {
+      options.expires = new Date(Date.parse('01 Jan 2010'));
+    }
+
+    res.cookie(this.cookieName, value, options);
   }
+
+  interceptWriteHeaders(res: Response, callback: () => void): void {
+    const realWriteHead = res.writeHead;
+
+    res.writeHead = (
+      statusCode: number,
+      reasonOrHeaders?: string | OutgoingHttpHeaders,
+      headers?: OutgoingHttpHeaders,
+    ) => {
+      // set our encrypted cookie, if necessary
+      callback();
+
+      // ensure arguments.length is right
+      const args: [
+        number,
+        (string | OutgoingHttpHeaders | undefined)?,
+        (OutgoingHttpHeaders | undefined)?
+      ] = [statusCode];
+      if (reasonOrHeaders !== undefined) {
+        args.push(reasonOrHeaders);
+        if (headers !== undefined) {
+          args.push(headers);
+        }
+      }
+
+      // TODO: remove this any cast in the future -- for now,
+      // typescript can't quite handle the insanity of Node's
+      // writeHead's signature
+      realWriteHead.apply(res, args as any);
+    };
+  }
+
+  handle = (req: Request, res: Response, next: NextFunction): void => {
+    if (req.cookies === undefined) {
+      throw new Error('seshcookie requires the cookie-parser middleware be installed before it.');
+    }
+    if (req.session !== undefined) {
+      throw new Error('WARNING: session not empty; check your middleware stack.');
+    }
+
+    let hadCookie = false;
+    let originalSerializedSession: undefined | string;
+
+    if (req.cookies && req.cookies[this.cookieName]) {
+      hadCookie = true;
+      const cookie = req.cookies[this.cookieName];
+
+      try {
+        const plaintext = decrypt(cookie, this.key);
+        originalSerializedSession = plaintext;
+        req.session = JSON.parse(plaintext);
+      } catch (error) {
+        // console.log(`cookie decryption failed: ${error}`);
+      }
+    }
+
+    if (req.session === undefined) {
+      req.session = {};
+    }
+
+    this.interceptWriteHeaders(res, () => {
+      if (Object.keys(req.session).length === 0) {
+        if (hadCookie) {
+          // session has been emptied out; need to delete cookie.
+          this.setCookie(res, '', true);
+        }
+
+        return;
+      }
+
+      const contents = JSON.stringify(req.session);
+      if (contents === originalSerializedSession) {
+        // session hasn't changed; don't re-set the cookie
+        return;
+      }
+
+      const ciphertext = encrypt(Buffer.from(contents), this.key);
+      this.setCookie(res, ciphertext);
+    });
+
+    next();
+    // tslint:disable-next-line
+  };
 }
 
 export function seshcookie(options: Options): RequestHandler {
   const seshCookie = new SeshCookie(options);
-  return (req: Request, resp: Response, next: NextFunction) => {
-    seshCookie.handle(req, resp, next);
-  };
+  return seshCookie.handle;
 }

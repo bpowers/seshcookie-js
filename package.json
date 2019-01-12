@@ -8,10 +8,11 @@
   "license": "ISC",
   "private": false,
   "scripts": {
-    "format": "prettier --single-quote --trailing-comma all --write \"**/*.ts\"",
+    "format": "prettier --single-quote --trailing-comma all --write \"{src,test}/*.ts\"",
     "test": "yarn run build && yarn run mocha",
     "build": "tslint -p . && tsc",
-    "mocha": "tsc -p tsconfig.test.json && mocha test/ --recursive --exit"
+    "mocha": "tsc -p tsconfig.test.json && mocha test/ --recursive --exit",
+    "prepublishOnly": "rm -rf lib && npm run-script build"
   },
   "devDependencies": {
     "@types/chai": "^4.1.6",

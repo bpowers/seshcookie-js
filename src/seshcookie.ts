@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { OutgoingHttpHeaders } from 'http';
+import { OutgoingHttpHeaders, OutgoingHttpHeader } from 'http';
 
 import { CookieOptions, NextFunction, Request, RequestHandler, Response } from 'express';
 
@@ -105,19 +105,19 @@ class SeshCookie {
   interceptWriteHeaders(res: Response, callback: () => void): void {
     const realWriteHead = res.writeHead;
 
-    res.writeHead = (
+    res.writeHead = ((
       statusCode: number,
       reasonOrHeaders?: string | OutgoingHttpHeaders,
-      headers?: OutgoingHttpHeaders,
-    ) => {
+      headers?: OutgoingHttpHeaders | OutgoingHttpHeader[],
+    ): Response<any, Record<string, any>> => {
       // set our encrypted cookie, if necessary
       callback();
 
       // ensure arguments.length is right
       const args: [
         number,
-        (string | OutgoingHttpHeaders | undefined)?,
-        (OutgoingHttpHeaders | undefined)?
+        (string | OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined)?,
+        (OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined)?
       ] = [statusCode];
       if (reasonOrHeaders !== undefined) {
         args.push(reasonOrHeaders);
@@ -129,8 +129,8 @@ class SeshCookie {
       // TODO: remove this any cast in the future -- for now,
       // typescript can't quite handle the insanity of Node's
       // writeHead's signature
-      realWriteHead.apply(res, args as any);
-    };
+      return realWriteHead.apply(res, args as any);
+    }) as any;
   }
 
   handle = (req: Request, res: Response, next: NextFunction): void => {

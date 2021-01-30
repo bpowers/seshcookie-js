@@ -14,6 +14,7 @@ export interface Options {
   cookiePath: string;
   httpOnly: boolean;
   secure: boolean;
+  maxAgeInSeconds?: number;
 }
 
 export function encrypt(plaintext: Buffer, encKey: Buffer): string {
@@ -53,11 +54,7 @@ export function decrypt(content: string, encKey: Buffer): string {
 
 // turn a user-provided string into a key of the proper length for our AEAD key
 function deriveKey(input: string): Buffer {
-  return crypto
-    .createHash('sha256')
-    .update(input)
-    .digest()
-    .slice(0, 16);
+  return crypto.createHash('sha256').update(input).digest().slice(0, 16);
 }
 
 // using seshcookie extends the Request object with a session field.
@@ -80,6 +77,7 @@ class SeshCookie {
   cookiePath: string;
   httpOnly: boolean;
   secure: boolean;
+  maxAge?: number;
 
   constructor(options: Options) {
     this.key = deriveKey(options.key);
@@ -87,6 +85,7 @@ class SeshCookie {
     this.cookiePath = options.cookiePath ? options.cookiePath : '/';
     this.httpOnly = options.httpOnly;
     this.secure = options.secure;
+    this.maxAge = options.maxAgeInSeconds;
   }
 
   private setCookie(res: Response, value: string, expire?: boolean): void {
@@ -98,6 +97,9 @@ class SeshCookie {
 
     if (expire) {
       options.expires = new Date(Date.parse('01 Jan 2010'));
+    } else if (this.maxAge !== undefined) {
+      // insane; Express wants this in milliseconds
+      options.maxAge = this.maxAge * 1000;
     }
 
     res.cookie(this.cookieName, value, options);
@@ -120,7 +122,7 @@ class SeshCookie {
       const args: [
         number,
         (string | OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined)?,
-        (OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined)?
+        (OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined)?,
       ] = [statusCode];
       if (reasonOrHeaders !== undefined) {
         args.push(reasonOrHeaders);

@@ -27,6 +27,7 @@ describe('cookie roundtrips', () => {
     cookiePath: '/',
     httpOnly: true,
     secure: false,
+    maxAgeInSeconds: 60 * 60, // 1 hour
   };
 
   app.use(cookieParser());
@@ -53,7 +54,7 @@ describe('cookie roundtrips', () => {
   const name = crypto.randomBytes(8).toString('hex');
   let cookie = '';
 
-  it('sets cookie', done => {
+  it('sets cookie', (done) => {
     agent
       .get(`/set/${name}`)
       .expect(200)
@@ -74,7 +75,7 @@ describe('cookie roundtrips', () => {
       });
   });
 
-  it('decodes cookie', done => {
+  it('decodes cookie', (done) => {
     agent
       .get(`/get`)
       .expect(200)
@@ -87,7 +88,7 @@ describe('cookie roundtrips', () => {
       });
   });
 
-  it('tolerates bad cookie', done => {
+  it('tolerates bad cookie', (done) => {
     // delete a char from the cookie
     agent.jar.setCookie(cookie.replace(/-./, '-'));
     agent
@@ -103,7 +104,7 @@ describe('cookie roundtrips', () => {
 
   agent = request.agent(app);
 
-  it('clears cookie for empty session', done => {
+  it('clears cookie for empty session', (done) => {
     agent
       .get(`/set/${name}`)
       .expect(200)
@@ -126,6 +127,31 @@ describe('cookie roundtrips', () => {
             }
             done();
           });
+      });
+  });
+
+  agent = request.agent(app);
+
+  it('sets max age', (done) => {
+    agent
+      .get(`/set/${name}`)
+      .expect(200)
+      .expect('set-cookie', new RegExp(`^${config.cookieName}=`))
+      .expect('set-cookie', new RegExp(`\\WMax-Age=3600;`))
+      .end((err, res) => {
+        if (err) {
+          throw err;
+        }
+        const cookies = res.get('Set-Cookie');
+        if (cookies.length !== 1) {
+          throw new Error('bad cookie length: ${cookies.length}');
+        }
+        cookie = cookies[0];
+        const decodedCookie = agent.jar.getCookie(config.cookieName, CookieAccessInfo.All);
+        if (!decodedCookie) {
+          throw new Error("I don't seem to understand cookiejar");
+        }
+        done();
       });
   });
 });

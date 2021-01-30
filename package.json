@@ -10,7 +10,7 @@
   "scripts": {
     "format": "prettier --single-quote --trailing-comma all --write \"{src,test}/*.ts\"",
     "test": "yarn run build && yarn run mocha",
-    "build": "tsc",
+    "build": "yarn eslint src --ext .ts && tsc",
     "mocha": "tsc -p tsconfig.test.json && mocha test/ --recursive --exit",
     "prepublishOnly": "rm -rf lib && npm run-script build"
   },
@@ -21,7 +21,12 @@
     "@types/mocha": "^8.2.0",
     "@types/node": "^14.14.22",
     "@types/supertest": "^2.0.10",
+    "@typescript-eslint/eslint-plugin": "^4.14.1",
+    "@typescript-eslint/parser": "^4.14.1",
     "chai": "^4.2.0",
+    "eslint": "^7.18.0",
+    "eslint-config-prettier": "^7.2.0",
+    "eslint-plugin-prettier": "^3.3.1",
     "mocha": "^8.2.1",
     "prettier": "^2.2.1",
     "supertest": "^6.1.3",

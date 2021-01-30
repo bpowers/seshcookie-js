@@ -60,8 +60,9 @@ function deriveKey(input: string): Buffer {
     .slice(0, 16);
 }
 
-// using seshcookie extends the Request obeject with a session field.
+// using seshcookie extends the Request object with a session field.
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       session: SessionData;
@@ -103,8 +104,10 @@ class SeshCookie {
   }
 
   interceptWriteHeaders(res: Response, callback: () => void): void {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const realWriteHead = res.writeHead;
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     res.writeHead = ((
       statusCode: number,
       reasonOrHeaders?: string | OutgoingHttpHeaders,
@@ -146,12 +149,13 @@ class SeshCookie {
 
     if (req.cookies && req.cookies[this.cookieName]) {
       hadCookie = true;
-      const cookie = req.cookies[this.cookieName];
+      const cookie = req.cookies[this.cookieName] as string;
 
       try {
         const plaintext = decrypt(cookie, this.key);
         originalSerializedSession = plaintext;
-        req.session = JSON.parse(plaintext);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        req.session = JSON.parse(plaintext) as Express.SessionData;
       } catch (error) {
         // console.log(`cookie decryption failed: ${error}`);
       }

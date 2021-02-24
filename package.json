@@ -1,6 +1,6 @@
 {
   "name": "seshcookie",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Encrypted cookie-based sessions for Express",
   "main": "lib/seshcookie.js",
   "repository": "https://github.com/bpowers/seshcookie-js",
@@ -25,7 +25,7 @@
     "@typescript-eslint/parser": "^4.14.1",
     "chai": "^4.2.0",
     "eslint": "^7.18.0",
-    "eslint-config-prettier": "^7.2.0",
+    "eslint-config-prettier": "^8.0.0",
     "eslint-plugin-prettier": "^3.3.1",
     "mocha": "^8.2.1",
     "prettier": "^2.2.1",

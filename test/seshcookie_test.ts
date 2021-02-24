@@ -28,6 +28,7 @@ describe('cookie roundtrips', () => {
     httpOnly: true,
     secure: false,
     maxAgeInSeconds: 60 * 60, // 1 hour
+    sameSite: 'strict',
   };
 
   app.use(cookieParser());
@@ -138,6 +139,32 @@ describe('cookie roundtrips', () => {
       .expect(200)
       .expect('set-cookie', new RegExp(`^${config.cookieName}=`))
       .expect('set-cookie', new RegExp(`\\WMax-Age=3600;`))
+      .end((err, res) => {
+        if (err) {
+          throw err;
+        }
+        const cookies = res.get('Set-Cookie');
+        if (cookies.length !== 1) {
+          throw new Error('bad cookie length: ${cookies.length}');
+        }
+        cookie = cookies[0];
+        const decodedCookie = agent.jar.getCookie(config.cookieName, CookieAccessInfo.All);
+        if (!decodedCookie) {
+          throw new Error("I don't seem to understand cookiejar");
+        }
+        done();
+      });
+  });
+
+  agent = request.agent(app);
+
+  it('sets same site', (done) => {
+    agent.jar.setCookie(cookie.replace(/-./, '-'));
+    agent
+      .get(`/set/${name}`)
+      .expect(200)
+      .expect('set-cookie', new RegExp(`^${config.cookieName}=`))
+      .expect('set-cookie', new RegExp(`\\WSameSite=Strict(;|$)`))
       .end((err, res) => {
         if (err) {
           throw err;

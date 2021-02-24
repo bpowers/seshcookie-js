@@ -15,6 +15,7 @@ export interface Options {
   httpOnly: boolean;
   secure: boolean;
   maxAgeInSeconds?: number;
+  sameSite?: boolean | 'lax' | 'strict' | 'none';
 }
 
 export function encrypt(plaintext: Buffer, encKey: Buffer): string {
@@ -72,12 +73,13 @@ declare global {
 }
 
 class SeshCookie {
-  key: Buffer;
-  cookieName: string;
-  cookiePath: string;
-  httpOnly: boolean;
-  secure: boolean;
-  maxAge?: number;
+  readonly key: Buffer;
+  readonly cookieName: string;
+  readonly cookiePath: string;
+  readonly httpOnly: boolean;
+  readonly secure: boolean;
+  readonly maxAge?: number;
+  readonly sameSite?: boolean | 'lax' | 'strict' | 'none';
 
   constructor(options: Options) {
     this.key = deriveKey(options.key);
@@ -86,6 +88,7 @@ class SeshCookie {
     this.httpOnly = options.httpOnly;
     this.secure = options.secure;
     this.maxAge = options.maxAgeInSeconds;
+    this.sameSite = options.sameSite;
   }
 
   private setCookie(res: Response, value: string, expire?: boolean): void {
@@ -102,6 +105,10 @@ class SeshCookie {
       options.maxAge = this.maxAge * 1000;
     }
 
+    if (this.sameSite !== undefined) {
+      options.sameSite = this.sameSite;
+    }
+
     res.cookie(this.cookieName, value, options);
   }
 
@@ -114,7 +121,7 @@ class SeshCookie {
       statusCode: number,
       reasonOrHeaders?: string | OutgoingHttpHeaders,
       headers?: OutgoingHttpHeaders | OutgoingHttpHeader[],
-    ): Response<any, Record<string, any>> => {
+    ): Response => {
       // set our encrypted cookie, if necessary
       callback();
 
